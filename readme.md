@@ -10,6 +10,3 @@
   * Wait for all the videos
 
 ## Todo
-
-- Async increase on currentItemId cause error with slow connection
-  * Move download with retry to a separated function

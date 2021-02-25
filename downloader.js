@@ -1,4 +1,4 @@
-const DOWNLOAD_DELAY = 6000;
+const DOWNLOAD_DELAY = 500;
 const MEDIA_TYPE = "mp4";
 const QUALITY = "1280x720";
 const API_VERSION = "v3";
@@ -6,15 +6,15 @@ const API_VERSION = "v3";
 let currentItemId = 0;
 const $contentItems = $("button.content-item");
 const videos = $contentItems.length;
-const courseTitle  = $(".course-title__title > a").html();
+const courseTitle = $(".course-title__title > a").html();
 
 console.log("Found videos: " + videos);
 
 function downloader() {
     $contentItems.eq(currentItemId).click();
-    setTimeout(function () {
+
+    setTimeout(() => {
         const clipId = location.href.replace("https://app.pluralsight.com/course-player?clipId=", "");
-        console.log(currentItemId + ": " + clipId);
 
         $.ajax({
             url: "https://app.pluralsight.com/video/clips/" + API_VERSION + "/viewclip",
@@ -29,28 +29,42 @@ function downloader() {
             contentType: "application/json",
             type: "POST"
         })
-            .done(function (data) {
-                console.log(data.urls[0].url)
-                new jsFileDownloader({
-                    url: data.urls[0].url,
-                    nameCallback: function () {
-                        const $button = $("button.content-item").eq(currentItemId);
-                        const sectionTitle = $button.closest(".module").find(".module-header__title").html();
-                        const videoName = $button.find("span:first").attr("title");
-                        return courseTitle + " - " + (currentItemId + 1) + " - " + sectionTitle + " - " + videoName + "." + MEDIA_TYPE
-                    }
-                })
-                    .then(function () {
-                        currentItemId++;
-                    })
-                    .catch(function (error) {
-                    });
-            });
+            .done((data) => {
+                const cdnUrl = data.urls[0].url;
+                console.info("Download started clipId#" + clipId + " currentItemId:" + currentItemId + " cdnUrl:" + cdnUrl);
+                syncDownloader(cdnUrl, currentItemId);
 
-        if (currentItemId < videos - 1) {
-            setTimeout(downloader, DOWNLOAD_DELAY);
-        }
+                currentItemId++;
+            })
+            .fail(() => {
+                console.error("CDN request error: itemId#" + currentItemId + " clipId#" + clipId);
+            })
+            .always(() => {
+                if (currentItemId < videos) {
+                    downloader();
+                }
+            });
     }, DOWNLOAD_DELAY);
+}
+
+function syncDownloader(cdnUrl, asyncCurrentItemId) {
+    new jsFileDownloader({
+        url: cdnUrl,
+        nameCallback: () => {
+            const $button = $("button.content-item").eq(asyncCurrentItemId);
+            const sectionTitle = $button.closest(".module").find(".module-header__title").html();
+            const videoTitle = $button.find("h3 span").attr("title");
+
+            return courseTitle + " - " + (asyncCurrentItemId + 1) + " - " + sectionTitle + " - " + videoTitle + "." + MEDIA_TYPE
+        }
+    })
+        .then(() => {
+            console.info("Download finished: itemId#" + asyncCurrentItemId);
+        })
+        .catch(() => {
+            console.error("Download error: itemId#" + asyncCurrentItemId);
+            asyncDownloader(cdnUrl, asyncCurrentItemId);
+        });
 }
 
 downloader(videos);
