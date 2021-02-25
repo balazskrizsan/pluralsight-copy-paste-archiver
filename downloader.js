@@ -1,23 +1,29 @@
-var DOWNLOAD_DELAY = 3000;
+const DOWNLOAD_DELAY = 6000;
+const MEDIA_TYPE = "mp4";
+const QUALITY = "1280x720";
+const API_VERSION = "v3";
 
-var i = 0, videos = $("button.content-item").length;
+let currentItemId = 0;
+const $contentItems = $("button.content-item");
+const videos = $contentItems.length;
+const courseTitle  = $(".course-title__title > a").html();
 
-console.log("Download starting in " + (DOWNLOAD_DELAY / 1000) + "s");
-console.log("Found videos: " + videos + 1);
-
+console.log("Found videos: " + videos);
 
 function downloader() {
-    var clipId = location.href.replace("https://app.pluralsight.com/course-player?clipId=", "");
-    console.log(i + ": " + clipId);
+    $contentItems.eq(currentItemId).click();
     setTimeout(function () {
+        const clipId = location.href.replace("https://app.pluralsight.com/course-player?clipId=", "");
+        console.log(currentItemId + ": " + clipId);
+
         $.ajax({
-            url: "https://app.pluralsight.com/video/clips/v3/viewclip",
+            url: "https://app.pluralsight.com/video/clips/" + API_VERSION + "/viewclip",
             data: JSON.stringify({
                 "boundedContext": "course",
                 "clipId": clipId,
-                "mediaType": "mp4",
+                "mediaType": MEDIA_TYPE,
                 "online": true,
-                "quality": "1280x720"
+                "quality": QUALITY
             }),
             dataType: "json",
             contentType: "application/json",
@@ -27,23 +33,22 @@ function downloader() {
                 console.log(data.urls[0].url)
                 new jsFileDownloader({
                     url: data.urls[0].url,
-                    nameCallback: function (name) {
-                        return i + ".mp4"
+                    nameCallback: function () {
+                        const $button = $("button.content-item").eq(currentItemId);
+                        const sectionTitle = $button.closest(".module").find(".module-header__title").html();
+                        const videoName = $button.find("span:first").attr("title");
+                        return courseTitle + " - " + (currentItemId + 1) + " - " + sectionTitle + " - " + videoName + "." + MEDIA_TYPE
                     }
                 })
                     .then(function () {
-                        i++;
+                        currentItemId++;
                     })
                     .catch(function (error) {
                     });
-            })
-            .fail(function (q, w, e) {
-                console.log(q);
             });
 
-        if (i < videos) {
+        if (currentItemId < videos - 1) {
             setTimeout(downloader, DOWNLOAD_DELAY);
-            $("button.content-item").eq(i).click();
         }
     }, DOWNLOAD_DELAY);
 }
